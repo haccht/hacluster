@@ -3,7 +3,7 @@ Vagrant.configure(2) do |config|
   config.vm.box = 'centos/7'
   config.vm.box_check_update = false
 
-  hosts = { 'casper01' => '192.168.99.31', 'casper02' => '192.168.99.32' }
+  hosts = { 'capser-1' => '192.168.99.31', 'capser-2' => '192.168.99.32' }
 
   hosts.each do |hostname, ipaddr|
     config.vm.define hostname do |host|

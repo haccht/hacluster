@@ -3,12 +3,12 @@ set -x
 setenforce 0
 
 ## hosts
-sed -i '/127.0.0.1\s*casper01\s.*/d' /etc/hosts
-sed -i '/127.0.0.1\s*casper02\s.*/d' /etc/hosts
-echo 192.168.99.31 casper01 >> /etc/hosts
-echo 192.168.99.32 casper02 >> /etc/hosts
+sed -i '/127.0.0.1\s*capser-1\s.*/d' /etc/hosts
+sed -i '/127.0.0.1\s*capser-2\s.*/d' /etc/hosts
+echo 192.168.99.31 capser-1 >> /etc/hosts
+echo 192.168.99.32 capser-2 >> /etc/hosts
 echo 192.168.99.33 casper  >> /etc/hosts
-export no_proxy=$no_proxy,casper01,casper02
+export no_proxy=$no_proxy,capser-1,capser-2
 
 ## download packages
 yum -y install yum-utils
@@ -78,10 +78,10 @@ resource r0 {
   meta-disk internal;
   device /dev/drbd0;
   disk /dev/VolGroup00/lv_res0;
-  on casper01 {
+  on capser-1 {
     address 192.168.99.31:7788;
   }
-  on casper02 {
+  on capser-2 {
     address 192.168.99.32:7788;
   }
 }

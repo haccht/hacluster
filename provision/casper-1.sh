@@ -3,12 +3,12 @@ set -x
 setenforce 0
 
 ## hosts
-sed -i '/127.0.0.1\s*casper01\s.*/d' /etc/hosts
-sed -i '/127.0.0.1\s*casper02\s.*/d' /etc/hosts
-echo 192.168.99.31 casper01 >> /etc/hosts
-echo 192.168.99.32 casper02 >> /etc/hosts
+sed -i '/127.0.0.1\s*capser-1\s.*/d' /etc/hosts
+sed -i '/127.0.0.1\s*capser-2\s.*/d' /etc/hosts
+echo 192.168.99.31 capser-1 >> /etc/hosts
+echo 192.168.99.32 capser-2 >> /etc/hosts
 echo 192.168.99.33 casper  >> /etc/hosts
-export no_proxy=$no_proxy,casper01,casper02
+export no_proxy=$no_proxy,capser-1,capser-2
 
 ## download packages
 yum -y install yum-utils
@@ -78,10 +78,10 @@ resource r0 {
   meta-disk internal;
   device /dev/drbd0;
   disk /dev/VolGroup00/lv_res0;
-  on casper01 {
+  on capser-1 {
     address 192.168.99.31:7788;
   }
-  on casper02 {
+  on capser-2 {
     address 192.168.99.32:7788;
   }
 }
@@ -92,7 +92,7 @@ drbdadm up r0
 
 while :; do
   sleep 1
-  nc -z casper02 5678
+  nc -z capser-2 5678
   [[ $? -eq 0 ]] && break
 done
 drbdadm primary --force r0
@@ -108,11 +108,11 @@ corosync-keygen
 mv /dev/random{.bak,}
 while :; do
   sleep 1
-  nc -z casper02 5678
+  nc -z capser-2 5678
   [[ $? -eq 0 ]] && break
 done
 sleep 1
-cat /etc/corosync/authkey /vagrant/tmp/authkey | nc casper02 5678
+cat /etc/corosync/authkey /vagrant/tmp/authkey | nc capser-2 5678
 
 cat << EOL > /etc/corosync/corosync.conf
 compatibility: whitetank
@@ -193,17 +193,17 @@ service pcsd start
 echo hacluster | passwd --stdin hacluster
 
 while :; do
-  nc -z casper02 5678
+  nc -z capser-2 5678
   [[ $? -eq 0 ]] && break
 done
 
-pcs cluster auth casper01 casper02 -u hacluster -p hacluster
-pcs cluster setup --name caspercluster casper01 casper02 --force
+pcs cluster auth capser-1 capser-2 -u hacluster -p hacluster
+pcs cluster setup --name caspercluster capser-1 capser-2 --force
 sleep 30
-pcs cluster start casper01 casper02
+pcs cluster start capser-1 capser-2
 
 while true; do
-  pcs status | grep 'Online: \[ casper01 casper02 \]' > /dev/null
+  pcs status | grep 'Online: \[ capser-1 capser-2 \]' > /dev/null
   if [ $? = 0 ]; then break; else sleep 1; fi
 done
 
@@ -269,7 +269,7 @@ sleep 30
 pcs status
 
 while :; do
-  nc -z casper02 5678
+  nc -z capser-2 5678
   [[ $? -eq 0 ]] && break
 done
 
