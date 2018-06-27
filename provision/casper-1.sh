@@ -3,12 +3,11 @@ set -x
 setenforce 0
 
 ## hosts
-sed -i '/127.0.0.1\s*capser-1\s.*/d' /etc/hosts
-sed -i '/127.0.0.1\s*capser-2\s.*/d' /etc/hosts
-echo 192.168.99.31 capser-1 >> /etc/hosts
-echo 192.168.99.32 capser-2 >> /etc/hosts
+sed -i '/127.0.0.1\s*casper/d' /etc/hosts
+echo 192.168.99.31 casper-1 >> /etc/hosts
+echo 192.168.99.32 casper-2 >> /etc/hosts
 echo 192.168.99.33 casper  >> /etc/hosts
-export no_proxy=$no_proxy,capser-1,capser-2
+export no_proxy=$no_proxy,casper-1,casper-2
 
 ## download packages
 yum -y install yum-utils
@@ -78,10 +77,10 @@ resource r0 {
   meta-disk internal;
   device /dev/drbd0;
   disk /dev/VolGroup00/lv_res0;
-  on capser-1 {
+  on casper-1 {
     address 192.168.99.31:7788;
   }
-  on capser-2 {
+  on casper-2 {
     address 192.168.99.32:7788;
   }
 }
@@ -92,7 +91,7 @@ drbdadm up r0
 
 while :; do
   sleep 1
-  nc -z capser-2 5678
+  nc -z casper-2 5678
   [[ $? -eq 0 ]] && break
 done
 drbdadm primary --force r0
@@ -108,11 +107,11 @@ corosync-keygen
 mv /dev/random{.bak,}
 while :; do
   sleep 1
-  nc -z capser-2 5678
+  nc -z casper-2 5678
   [[ $? -eq 0 ]] && break
 done
 sleep 1
-cat /etc/corosync/authkey /vagrant/tmp/authkey | nc capser-2 5678
+cat /etc/corosync/authkey /vagrant/tmp/authkey | nc casper-2 5678
 
 cat << EOL > /etc/corosync/corosync.conf
 compatibility: whitetank
@@ -178,7 +177,6 @@ mysql_install_db --no-defaults --datadir=/mnt/drbd/mysql --user=mysql
 chown -R mysql.mysql /mnt/drbd/mysql
 
 # nfs
-mkdir /mnt/drbd/nfslib
 mkdir /mnt/drbd/nfsroot
 
 ## nginx
@@ -193,17 +191,17 @@ service pcsd start
 echo hacluster | passwd --stdin hacluster
 
 while :; do
-  nc -z capser-2 5678
+  nc -z casper-2 5678
   [[ $? -eq 0 ]] && break
 done
 
-pcs cluster auth capser-1 capser-2 -u hacluster -p hacluster
-pcs cluster setup --name caspercluster capser-1 capser-2 --force
+pcs cluster auth casper-1 casper-2 -u hacluster -p hacluster
+pcs cluster setup --name caspercluster casper-1 casper-2 --force
 sleep 30
-pcs cluster start capser-1 capser-2
+pcs cluster start casper-1 casper-2
 
 while true; do
-  pcs status | grep 'Online: \[ capser-1 capser-2 \]' > /dev/null
+  pcs status | grep 'Online: \[ casper-1 casper-2 \]' > /dev/null
   if [ $? = 0 ]; then break; else sleep 1; fi
 done
 
@@ -224,44 +222,39 @@ pcs cluster cib output.cib
 
 pcs -f output.cib resource create drbd ocf:linbit:drbd \
   drbd_resource="r0" drbdconf="/etc/drbd.conf" \
-  op start interval="0s" timeout="240s" \
-  op stop  interval="0s" timeout="100s" \
-  op monitor interval="10s" timeout="20s" role="Master" \
-  op monitor interval="20s" timeout="20s" role="Slave"
+  op start interval="0s" timeout="240s" op stop  interval="0s" timeout="100s" \
+  op monitor interval="10s" timeout="20s" start-delay="1m"  on-fail="restart" role="Master" \
+  op monitor interval="20s" timeout="20s" start-delay="1m"  on-fail="restart" role="Slave"
 
 pcs -f output.cib resource master ms_drbd drbd \
   master-max=1 master-node-max=1 clone-max=2 clone-node-max=1 notify=true
 
-pcs -f output.cib resource create fs ocf:heartbeat:Filesystem \
-  device="/dev/drbd0" directory="/mnt/drbd" fstype="xfs" \
-  op start timeout="40s" \
-  op stop  timeout="40s" \
-  op monitor interval="10s" timeout="60s"
-
 pcs -f output.cib resource create vip ocf:heartbeat:IPaddr2 \
-  ip="192.168.99.33" cidr_netmask="24" nic="eth1" \
-  op start timeout="30s" \
-  op stop  timeout="30s" \
+  ip="192.168.99.33" cidr_netmask="24" nic="eno1" \
+  op start timeout="20s" op stop  timeout="20s" \
   op monitor interval="10s" timeout="20s"
 
-pcs -f output.cib resource create nfs ocf:heartbeat:nfsserver \
-  nfs_shared_infodir="/mnt/drbd/nfslib" \
-  op start timeout="20s" \
-  op stop  timeout="20s" \
-  op monitor interval="10s" timeout="10s" on-fail="restart" start-delay="20s"
+pcs -f output.cib resource create fs ocf:heartbeat:Filesystem \
+  device="/dev/drbd0" directory="/mnt/drbd" fstype="xfs" \
+  op start timeout="40s" op stop  timeout="40s" \
+  op monitor interval="10s" timeout="60s"
+
+pcs -f output.cib resource create nfsserver systemd:nfs-server \
+  op monitor interval="20s" start-delay="10s" --clone
 
 pcs -f output.cib resource create exportfs ocf:heartbeat:exportfs \
   clientspec="192.168.99.0/24" options="rw,no_root_squash" directory="/mnt/drbd/nfsroot" fsid="root"
+  op monitor interval="30s"
 
-pcs -f output.cib resource create mysql ocf:heartbeat:mysql \
-  user="mysql" group="mysql" config="/etc/my.cnf" binary="/usr/bin/mysqld_safe" \
-  datadir="/mnt/drbd/mysql" pid="/var/run/mariadb/mariadb.pid" socket="/var/lib/mysql/mysql.sock" \
-  op start interval="0s" timeout="60s" \
-  op stop  interval="0s" timeout="60s" \
-  op monitor interval="20s" timeout="30s"
+#pcs -f output.cib resource create mysql ocf:heartbeat:mysql \
+#  user="mysql" group="mysql" config="/etc/my.cnf" binary="/usr/bin/mysqld_safe" \
+#  datadir="/mnt/drbd/mysql" pid="/var/run/mariadb/mariadb.pid" socket="/var/lib/mysql/mysql.sock" \
+#  op start interval="0s" timeout="60s" \
+#  op stop  interval="0s" timeout="60s" \
+#  op monitor interval="20s" timeout="30s"
 
-pcs -f output.cib resource group add core fs vip nfs exportfs mysql
-pcs -f output.cib constraint colocation add core ms_drbd INFINITY with-rsc-role=Master
+pcs -f output.cib resource group add core vip fs exportfs
+pcs -f output.cib constraint colocation add core with ms_drbd INFINITY with-rsc-role=Master
 pcs -f output.cib constraint order promote ms_drbd then start core
 pcs cluster cib-push output.cib
 
@@ -269,9 +262,11 @@ sleep 30
 pcs status
 
 while :; do
-  nc -z capser-2 5678
+  nc -z casper-2 5678
   [[ $? -eq 0 ]] && break
 done
 
 mkdir -p /exports
 mount -t nfs casper:/mnt/drbd/nfsroot /exports -o rw,rsize=8192,wsize=8192,soft,intr,timeo=20,retrans=3
+
+echo 'finish'

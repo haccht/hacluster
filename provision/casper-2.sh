@@ -3,19 +3,17 @@ set -x
 setenforce 0
 
 ## hosts
-sed -i '/127.0.0.1\s*capser-1\s.*/d' /etc/hosts
-sed -i '/127.0.0.1\s*capser-2\s.*/d' /etc/hosts
-echo 192.168.99.31 capser-1 >> /etc/hosts
-echo 192.168.99.32 capser-2 >> /etc/hosts
+sed -i '/127.0.0.1\s*casper/d' /etc/hosts
+echo 192.168.99.31 casper-1 >> /etc/hosts
+echo 192.168.99.32 casper-2 >> /etc/hosts
 echo 192.168.99.33 casper  >> /etc/hosts
-export no_proxy=$no_proxy,capser-1,capser-2
+export no_proxy=$no_proxy,casper-1,casper-2
 
 ## download packages
 yum -y install yum-utils
 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 rpm -Uvh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm
 rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
-#rpm -Uvh /vagrant/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
 
 yum -y install \
   kmod-drbd90-9.0.14-1.el7_5.elrepo drbd90-utils-9.3.1-1.el7.elrepo \
@@ -78,10 +76,10 @@ resource r0 {
   meta-disk internal;
   device /dev/drbd0;
   disk /dev/VolGroup00/lv_res0;
-  on capser-1 {
+  on casper-1 {
     address 192.168.99.31:7788;
   }
-  on capser-2 {
+  on casper-2 {
     address 192.168.99.32:7788;
   }
 }
@@ -178,3 +176,5 @@ nc -l -p 5678 -w 300s
 ## nfs
 mkdir -p /exports
 mount -t nfs casper:/mnt/drbd/nfsroot /exports -o rw,rsize=8192,wsize=8192,soft,intr,timeo=20,retrans=3
+
+echo 'finish'
