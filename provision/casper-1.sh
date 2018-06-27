@@ -230,7 +230,7 @@ pcs -f output.cib resource master ms_drbd drbd \
   master-max=1 master-node-max=1 clone-max=2 clone-node-max=1 notify=true
 
 pcs -f output.cib resource create vip ocf:heartbeat:IPaddr2 \
-  ip="192.168.99.33" cidr_netmask="24" nic="eno1" \
+  ip="192.168.99.33" cidr_netmask="24" nic="eth1" \
   op start timeout="20s" op stop  timeout="20s" \
   op monitor interval="10s" timeout="20s"
 
