@@ -12,6 +12,7 @@ yum -y install nfs-utils docker-ce-17.03.2.ce  docker-ce-selinux-17.03.2.ce \
 
 # docker
 systemctl start docker
+systemctl enable docker
 usermod -aG docker vagrant
 
 # nfs

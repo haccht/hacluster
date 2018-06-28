@@ -181,13 +181,16 @@ mkdir /mnt/drbd/nfsroot
 
 ## nginx
 systemctl start nginx
+systemctl enable nginx
 
 ## docker
 systemctl start docker
+systemctl enable docker
 usermod -aG docker vagrant
 
 ## pacemaker
-service pcsd start
+systemctl start docker
+systemctl enable docker
 echo hacluster | passwd --stdin hacluster
 
 while :; do

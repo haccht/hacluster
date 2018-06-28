@@ -161,13 +161,16 @@ mysql_install_db --no-defaults --user=mysql
 
 ## nginx
 systemctl start nginx
+systemctl enable nginx
 
 # docker
 systemctl start docker
+systemctl enable docker
 usermod -aG docker vagrant
 
 ## pacemaker
-service pcsd start
+systemctl start pcsd
+systemctl enable pcsd
 echo hacluster | passwd --stdin hacluster
 
 nc -l -p 5678 -w 300s
