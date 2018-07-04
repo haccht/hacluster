@@ -3,11 +3,11 @@ set -x
 setenforce 0
 
 ## hosts
-sed -i '/127.0.0.1\s*casper/d' /etc/hosts
-echo 192.168.99.31 casper-1 >> /etc/hosts
-echo 192.168.99.32 casper-2 >> /etc/hosts
-echo 192.168.99.33 casper  >> /etc/hosts
-export no_proxy=$no_proxy,casper-1,casper-2
+sed -i '/127.0.0.1\s*node/d' /etc/hosts
+echo 192.168.99.31 node-1 >> /etc/hosts
+echo 192.168.99.32 node-2 >> /etc/hosts
+echo 192.168.99.33 node   >> /etc/hosts
+export no_proxy=$no_proxy,node-1,node-2
 
 ## download packages
 yum -y install yum-utils
@@ -76,10 +76,10 @@ resource r0 {
   meta-disk internal;
   device /dev/drbd0;
   disk /dev/VolGroup00/lv_res0;
-  on casper-1 {
+  on node-1 {
     address 192.168.99.31:7788;
   }
-  on casper-2 {
+  on node-2 {
     address 192.168.99.32:7788;
   }
 }
@@ -149,6 +149,7 @@ quorum {
 }
 EOL
 
+mkdir -p /etc/corosync/service.d
 cat << EOL > /etc/corosync/service.d/pcmk
 service {
   name: pacemaker
@@ -178,6 +179,6 @@ nc -l -p 5678 -w 300s
 
 ## nfs
 mkdir -p /exports
-mount -t nfs casper:/mnt/drbd/nfsroot /exports -o rw,rsize=8192,wsize=8192,soft,intr,timeo=20,retrans=3
+mount -t nfs node:/mnt/drbd/nfsroot /exports -o rw,rsize=8192,wsize=8192,soft,intr,timeo=20,retrans=3
 
 echo 'finish'

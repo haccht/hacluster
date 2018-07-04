@@ -1,7 +1,7 @@
 #! /bin/sh
 set -x
 
-echo 192.168.99.33 casper >> /etc/hosts
+echo 192.168.99.33 node >> /etc/hosts
 
 ## download packages
 yum -y install yum-utils
@@ -17,6 +17,6 @@ usermod -aG docker vagrant
 
 # nfs
 mkdir -p /mnt/nfs
-#mount -t nfs casper:/mnt/drbd/nfsroot /mnt/nfs -o rw,rsize=8192,wsize=8192,soft,intr,timeo=20,retrans=3
+#mount -t nfs node:/mnt/drbd/nfsroot /mnt/nfs -o rw,rsize=8192,wsize=8192,soft,intr,timeo=20,retrans=3
 
 echo 'finish'

@@ -3,18 +3,17 @@ set -x
 setenforce 0
 
 ## hosts
-sed -i '/127.0.0.1\s*casper/d' /etc/hosts
-echo 192.168.99.31 casper-1 >> /etc/hosts
-echo 192.168.99.32 casper-2 >> /etc/hosts
-echo 192.168.99.33 casper  >> /etc/hosts
-export no_proxy=$no_proxy,casper-1,casper-2
+sed -i '/127.0.0.1\s*node/d' /etc/hosts
+echo 192.168.99.31 node-1 >> /etc/hosts
+echo 192.168.99.32 node-2 >> /etc/hosts
+echo 192.168.99.33 node   >> /etc/hosts
+export no_proxy=$no_proxy,node-1,node-2
 
 ## download packages
 yum -y install yum-utils
 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 rpm -Uvh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm
 rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
-#rpm -Uvh /vagrant/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
 
 yum -y install \
   kmod-drbd90-9.0.14-1.el7_5.elrepo drbd90-utils-9.3.1-1.el7.elrepo \
@@ -77,10 +76,10 @@ resource r0 {
   meta-disk internal;
   device /dev/drbd0;
   disk /dev/VolGroup00/lv_res0;
-  on casper-1 {
+  on node-1 {
     address 192.168.99.31:7788;
   }
-  on casper-2 {
+  on node-2 {
     address 192.168.99.32:7788;
   }
 }
@@ -89,11 +88,7 @@ EOL
 drbdadm create-md r0
 drbdadm up r0
 
-while :; do
-  sleep 1
-  nc -z casper-2 5678
-  [[ $? -eq 0 ]] && break
-done
+until nc -z node-2 5678; do sleep 1; done
 drbdadm primary --force r0
 
 mkdir -p /mnt/drbd
@@ -105,13 +100,9 @@ mv /dev/random{,.bak}
 ln -sf /dev/urandom /dev/random
 corosync-keygen
 mv /dev/random{.bak,}
-while :; do
-  sleep 1
-  nc -z casper-2 5678
-  [[ $? -eq 0 ]] && break
-done
+until nc -z node-2 5678; do sleep 1; done
 sleep 1
-cat /etc/corosync/authkey /vagrant/tmp/authkey | nc casper-2 5678
+cat /etc/corosync/authkey | nc node-2 5678
 
 cat << EOL > /etc/corosync/corosync.conf
 compatibility: whitetank
@@ -164,6 +155,7 @@ quorum {
 }
 EOL
 
+mkdir -p /etc/corosync/service.d
 cat << EOL > /etc/corosync/service.d/pcmk
 service {
   name: pacemaker
@@ -189,24 +181,18 @@ systemctl enable docker
 usermod -aG docker vagrant
 
 ## pacemaker
-systemctl start docker
-systemctl enable docker
+systemctl start pcsd
+systemctl enable pcsd
 echo hacluster | passwd --stdin hacluster
 
-while :; do
-  nc -z casper-2 5678
-  [[ $? -eq 0 ]] && break
-done
+until nc -z node-2 5678; do sleep 1; done
 
-pcs cluster auth casper-1 casper-2 -u hacluster -p hacluster
-pcs cluster setup --name caspercluster casper-1 casper-2 --force
+pcs cluster auth node-1 node-2 -u hacluster -p hacluster
+pcs cluster setup --name nodecluster node-1 node-2 --force
 sleep 30
-pcs cluster start casper-1 casper-2
+pcs cluster start node-1 node-2
 
-while true; do
-  pcs status | grep 'Online: \[ casper-1 casper-2 \]' > /dev/null
-  if [ $? = 0 ]; then break; else sleep 1; fi
-done
+until pcs status | grep 'Online: \[ node-1 node-2 \]' > /dev/null; do sleep 1; done
 
 pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore
@@ -215,10 +201,7 @@ pcs resource defaults migration-threshold=5
 pcs resource defaults resource-stickiness=INFINITY
 pcs resource defaults failure-timeout=3600s
 
-while true; do
-  crm_verify -LV
-  if [ $? = 0 ]; then break; else sleep 1; fi
-done
+until crm_verify -LV; do sleep 1; done
 
 pcs status
 pcs cluster cib output.cib
@@ -264,12 +247,7 @@ pcs cluster cib-push output.cib
 sleep 30
 pcs status
 
-while :; do
-  nc -z casper-2 5678
-  [[ $? -eq 0 ]] && break
-done
-
 mkdir -p /exports
-mount -t nfs casper:/mnt/drbd/nfsroot /exports -o rw,rsize=8192,wsize=8192,soft,intr,timeo=20,retrans=3
+mount -t nfs node:/mnt/drbd/nfsroot /exports -o rw,rsize=8192,wsize=8192,soft,intr,timeo=20,retrans=3
 
 echo 'finish'
