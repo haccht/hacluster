@@ -164,9 +164,9 @@ service {
 EOL
 
 ## mariadb
-mkdir -p /mnt/drbd/mysql
-mysql_install_db --no-defaults --datadir=/mnt/drbd/mysql --user=mysql
-chown -R mysql.mysql /mnt/drbd/mysql
+mysql_install_db --user=mysql
+systemctl start mariadb
+systemctl enable mariadb
 
 # nfs
 mkdir /mnt/drbd/nfsroot

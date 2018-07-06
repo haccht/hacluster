@@ -158,7 +158,9 @@ service {
 EOL
 
 ## mariadb
-mysql_install_db --no-defaults --user=mysql
+mysql_install_db --user=mysql
+systemctl start mariadb
+systemctl enable mariadb
 
 ## nginx
 systemctl start nginx
@@ -174,7 +176,6 @@ systemctl start pcsd
 systemctl enable pcsd
 echo hacluster | passwd --stdin hacluster
 
-nc -l -p 5678 -w 300s
 nc -l -p 5678 -w 300s
 
 ## nfs
