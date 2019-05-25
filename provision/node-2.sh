@@ -16,7 +16,7 @@ rpm -Uvh http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0
 rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
 
 yum -y install \
-  kmod-drbd90-9.0.14-1.el7_5.elrepo drbd90-utils-9.3.1-1.el7.elrepo \
+  kmod-drbd90-9.0.16-1.el7_6.elrepo drbd90-utils-9.6.0-1.el7.elrepo
   pcs corosync pacemaker curl nmap-ncat mariadb-server mariadb-devel nginx nfs-utils \
   device-mapper-persistent-data lvm2 docker-ce-17.03.2.ce  docker-ce-selinux-17.03.2.ce \
   --setopt=obsoletes=0 --skip-broken
